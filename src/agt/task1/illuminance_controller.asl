@@ -1,17 +1,21 @@
 // illuminance controller agent
 
 /* Initial rules */
+is_in_range :- target_illuminance(Target) & current_illuminance(Current) & Target - Current < 100 | Current - Target < 100.
 
 // Inference rule for infering the belief requires_brightening if the target illuminance is higher than the current illuminance
-requires_brightening :- target_illuminance(Target) & current_illuminance(Current) & Target  > Current.
+requires_brightening :- target_illuminance(Target) & current_illuminance(Current) & Target > Current & (Target - Current) > 100.
 
 // Inference rule for infering the belief requires_darkening if the target illuminance is lower than the current illuminance
-requires_darkening :- target_illuminance(Target) & current_illuminance(Current) & Target < Current.
+requires_darkening :- target_illuminance(Target) & current_illuminance(Current) & Target < Current & (Current - Target) > 100.
+
+reached_target_illuminance :- target_illuminance(Target) & current_illuminance(Current) & Target == Current | is_in_range.
+
 
 /* Initial beliefs */
 
 // The agent believes that the target illuminance is 400 lux
-target_illuminance(400).
+target_illuminance(350).
 
 /* Initial goals */
 
@@ -38,7 +42,7 @@ target_illuminance(400).
  * Body: the agent performs the action of turning on the lights
 */
 @increase_illuminance_with_lights_plan
-+!manage_illuminance : lights("off") & requires_brightening <-
++!manage_illuminance : lights("off") & requires_brightening & weather("cloudy") <-
     .print("Turning on the lights");
     turnOnLights. // performs the action of turning on the lights
 
@@ -60,7 +64,7 @@ target_illuminance(400).
  * Body: the agent performs the action of raising the blinds
 */
 @increase_illuminance_with_blinds_plan
-+!manage_illuminance : blinds("lowered") &  requires_brightening <-
++!manage_illuminance : blinds("lowered") &  requires_brightening & weather("sunny") <-
     .print("Raising the blinds");
     raiseBlinds. // performs the action of raising the blinds
 
@@ -114,6 +118,19 @@ target_illuminance(400).
 @lights_plan
 +lights(State) : true <- 
     .print("The lights are ", State).
+/*
+* Plan for reacting to the situation where the target illuminance has been reached.
+* Context: reached_target_illuminance
+* Body: prints a message indicating that the target illuminance has been reached
+*/
+@target_illuminance_plan
+-!manage_illuminance: reached_target_illuminance <-
+    .print("The target illuminance has been reached ").
+
+@weather_changed_plan
+-!weather("sunny"):  blinds("raised") <-
+    .print("Lowering the blinds");
+    lowerBlinds. 
 
 /* Import behavior of agents that work in CArtAgO environments */
 { include("$jacamoJar/templates/common-cartago.asl") }
